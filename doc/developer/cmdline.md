@@ -175,10 +175,10 @@ lpm.print_err('something')
 For disabling each one of the levels, you should set this names:
 
 ```bash
-define('PARHAM_LOG_INFO', false)
-define('PARHAM_LOG_LOG', true)
-define('PARHAM_LOG_WARN', false)
-define('PARHAM_LOG_ERR', true)
+define('LPM_LOG_INFO', false)
+define('LPM_LOG_LOG', true)
+define('LPM_LOG_WARN', false)
+define('LPM_LOG_ERR', true)
 ```
 
 Also user can disable the log levels by using this options:

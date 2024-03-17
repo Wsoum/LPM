@@ -26,11 +26,11 @@
 
 import_once $__dir__ + '/../scripts/crawler-lib.loza'
 
-define('PARHAM_GLOBAL', false)
-define('PARHAM_LOG_INFO', false)
-define('PARHAM_LOG_LOG', false)
-define('PARHAM_LOG_WARN', false)
-define('PARHAM_LOG_ERR', false)
+define('LPM_GLOBAL', false)
+define('LPM_LOG_INFO', false)
+define('LPM_LOG_LOG', false)
+define('LPM_LOG_WARN', false)
+define('LPM_LOG_ERR', false)
 
 println 'Loading the tests...'
 # load the tests

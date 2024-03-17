@@ -59,11 +59,11 @@ func main(array[string] $argv)
         $q_flag_count = 4
     endif
 
-    define('PARHAM_GLOBAL', $is_global)
-    define('PARHAM_LOG_INFO', $q_flag_count <= 0)
-    define('PARHAM_LOG_LOG', $q_flag_count <= 1)
-    define('PARHAM_LOG_WARN', $q_flag_count <= 2)
-    define('PARHAM_LOG_ERR', $q_flag_count <= 3)
+    define('LPM_GLOBAL', $is_global)
+    define('LPM_LOG_INFO', $q_flag_count <= 0)
+    define('LPM_LOG_LOG', $q_flag_count <= 1)
+    define('LPM_LOG_WARN', $q_flag_count <= 2)
+    define('LPM_LOG_ERR', $q_flag_count <= 3)
 
     $args = lpm.cmdline.parse_args($argv)
 

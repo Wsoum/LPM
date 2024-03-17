@@ -25,28 +25,28 @@ ns lpm
 
 @doc "Print info texts"
 func print_info(string $txt)
-    if PARHAM_LOG_INFO
+    if LPM_LOG_INFO
         print $txt
     endif
 endfunc
 
 @doc "Print logs texts"
 func print_log(string $txt)
-    if PARHAM_LOG_LOG
+    if LPM_LOG_LOG
         print $txt
     endif
 endfunc
 
 @doc "Print warnings"
 func print_warn(string $txt)
-    if PARHAM_LOG_WARN
+    if LPM_LOG_WARN
         perror $txt
     endif
 endfunc
 
 @doc "Print errors"
 func print_err(string $txt)
-    if PARHAM_LOG_ERR
+    if LPM_LOG_ERR
         perror $txt
     endif
 endfunc

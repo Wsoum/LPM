@@ -44,7 +44,7 @@ func test_http()
         test.assertEquals $res->getcode(), 200
 
         # test Github package drvier
-        $pkg = lpm.Package('gh:lozalang/lpm')
+        $pkg = lpm.Package('gh:wsoum/lpm')
         test.assertEquals $pkg->get_version('master')->name, 'lpm'
     endtry
     goto after_http_test_ignore_error; label http_test_ignore_error

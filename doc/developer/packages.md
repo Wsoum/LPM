@@ -80,7 +80,7 @@ You can load pkgdir without specifying directory path:
 $pkg_dir = lpm.PackageDirectory()
 ```
 
-The above code, will check a name define named `PARHAM_GLOBAL`. if this is `true`, loads global package directory at `<home>/.local/lib/loza_modules`, if not, loads `./loza_modules`.
+The above code, will check a name define named `LPM_GLOBAL`. if this is `true`, loads global package directory at `<home>/.local/lib/loza_modules`, if not, loads `./loza_modules`.
 
 ### `is_installed($name)`
 This method checks a package is installed or not. gets unique name of package (for example `lpm`).

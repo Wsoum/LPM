@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Loza
-      uses: lozalang/setup-loza@master
+      uses: wsoum/setup-loza@master
       with:
         loza-version: 0.8.4
 

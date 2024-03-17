@@ -317,7 +317,7 @@ endclass
 class PackageDirectory
     func __init__(string $path = null)
         if $path is null
-            if PARHAM_GLOBAL
+            if LPM_GLOBAL
                 $path = string(py_load_module('pathlib')->Path()->home()) + '/.local/lib/loza_modules'
             else
                 $path = os.getcwd() + '/loza_modules'
