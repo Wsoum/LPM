@@ -2,8 +2,6 @@
   <img width="200" src="logo.svg" alt="LPM">
 </div>
 
-###### Logo by [Mehan](https://github.com/mehanalavimajd)
-
 # LPM package manager
 LPM is a package manager for [Loza programming language](https://github.com/wsoum/loza).
 
