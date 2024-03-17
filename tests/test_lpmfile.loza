@@ -1,0 +1,41 @@
+#
+# test_lpmfile.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+import_once $__dir__ + "/../src/lpm/pfile.loza"
+import_once @test
+
+@doc "LPMfile parser works"
+func test_lpmfile()
+    $pfile = lpm.LPMFile->load_f($__dir__ + '/files/LPMfile')
+    test.assertEquals($pfile->name, 'my-test-package')
+    test.assertEquals($pfile->description, 'this package does something')
+    test.assertEquals($pfile->description_file, 'README.md')
+    test.assertEquals($pfile->require, ['foo/bar', 'vendor/package'])
+    test.assertEquals($pfile->conflict, ['vendor2/package2'])
+endfunc
+
+redefine('TEST', test_lpmfile)
+
+if $__ismain__
+    TEST()
+endif

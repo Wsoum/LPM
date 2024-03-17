@@ -1,0 +1,146 @@
+#
+# install.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+import_once $__dir__ + '/../solver.loza'
+import_once $__dir__ + '/../version.loza'
+import_once $__dir__ + '/../cmdline.loza'
+import_once $__dir__ + '/../commands/gen-loader.loza'
+import_once $__dir__ + '/../log.loza'
+
+ns lpm; ns commands
+
+@doc """\
+Installs packages\n\
+Usage: lpm install [options...] package1 package2\n\
+"""
+func install_cmd($args)
+    $result = $args->validate({
+        'min_args': 1,
+    })
+    if $result is not true
+        lpm.print_warn 'lpm: install: ' + $result + '\n'
+        return 1
+    endif
+
+    # load the packages
+    lpm.print_info "Loading packages list...\n"
+    lpm.print_info "========================\n"
+
+    $packages = []
+
+    $i = 0
+    while $i < len($args->arguments)
+        $pkg_name = $args->arguments[$i]->split('=')
+        $pkg_version = null
+        if len($pkg_name) > 1
+            $pkg_version = $pkg_name[1]
+        endif
+        $pkg_name = $pkg_name[0]
+
+        $pkg = lpm.Package($pkg_name)
+
+        if not $pkg->is_success()
+            lpm.print_err 'Error: ' + $pkg->error + '\n'
+        else
+            if $pkg_version is null
+                $pkg_version = $pkg->versions[-1] # set latest version as default
+            endif
+
+            $version = $pkg->get_version($pkg_version)
+
+            if typeof($version) == string
+                lpm.print_err 'Error: ' + $version + '\n'
+            else
+                $packages->append([$pkg, $pkg_version])
+            endif
+        endif
+
+        $i = $i + 1
+    endwhile
+
+    if not $packages
+        return 1
+    endif
+
+    # load the package directory
+    $pkg_dir = lpm.PackageDirectory()
+
+    # add the old packages
+    $packages = [*$pkg_dir->installed_list(), *$packages]
+
+    $solver = lpm.DependencySolver()
+
+    $i = 0
+    while $i < len($packages)
+        $solver->install($packages[$i][0], $packages[$i][1])
+
+        if $solver->error is not null
+            lpm.print_err 'Solver error: ' + $solver->error + '\n'
+            return 2
+        endif
+
+        $i = $i + 1
+    endwhile
+
+    lpm.print_info 'Installing the Packages...\n'
+    lpm.print_info '==========================\n'
+
+    # install the packages
+    $i = 0
+    while $i < len($solver->for_install)
+        $version = $solver->for_install[$i][0]->get_version($solver->for_install[$i][1])
+        $installed = $pkg_dir->is_installed($version->name)
+        if $installed == false
+            lpm.print_log 'Installing ' + $version->name + ' (' + $solver->for_install[$i][1] + ') ...\n'
+        else
+            if lpm.version.compare($solver->for_install[$i][1], $installed) == 0
+                # package currently installed
+                lpm.print_log 'Package ' + $version->name + ' currently installed (' + $installed + ') ...\n'
+                $i = $i + 1
+                continue
+            elif lpm.version.compare($solver->for_install[$i][1], $installed) == 1
+                lpm.print_log 'Updating ' + $version->name + ' (to ' + $solver->for_install[$i][1] + ') ...\n'
+            else
+                lpm.print_log 'Downgrading ' + $version->name + ' (to ' + $solver->for_install[$i][1] + ') ...\n'
+            endif
+        endif
+
+        # install the package
+        $installer = lpm.Installer()
+        $installer->install($solver->for_install[$i][0], $solver->for_install[$i][1], $pkg_dir)
+
+        if $installer->error is not null
+            perror 'Error: ' + $installer->error + '\n'
+            return 1
+        endif
+
+        $i = $i + 1
+    endwhile
+
+    # run comman gen-loader
+    lpm.commands.gen_loader_cmd(lpm.cmdline.parse_args([]))
+
+    return 0
+endfunc
+
+endns; endns

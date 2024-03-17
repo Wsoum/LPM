@@ -1,0 +1,18 @@
+NAME my-test-package
+
+# hello
+# world
+
+DESCRIPTION this package does something
+DESCRIPTION_FILE README.md # hi
+
+REQUIRE foo/bar
+REQUIRE vendor/package
+
+# test comment
+CONFLICT vendor2/package2 # other comment
+
+SCRIPT my-script a-test-script.loza1
+SCRIPT my-script-2 a-test-script-2.loza1
+
+DEFAULT_SCRIPT my-script-2

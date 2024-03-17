@@ -1,0 +1,139 @@
+#
+# version.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+ns lpm; ns version
+
+@doc "Converts non-numeric chars to their code and returns new filtered string"
+func string::try_parse_int(string $str)
+    $i = 0
+    $valid_str = ''
+    $numbers = '0123456789-'
+    while $i < len($str)
+        if $str[$i] in $numbers
+            $valid_str = $valid_str + $str[$i]
+        else
+            $valid_str = $valid_str + '.' + str(ord($str[$i])) + '.'
+        endif
+
+        $i = $i + 1
+    endwhile
+
+    if $valid_str == ''
+        $valid_str = '0'
+    endif
+
+    $valid_str = $valid_str->replace('..', '.')->strip()
+
+    if $valid_str == ''
+        $valid_str = '0'
+    endif
+
+    return $valid_str
+endfunc
+
+@doc "Parses a version from string"
+func list::parse(string $version)
+    $version = $version->lstrip('v')
+    $version = $version->lstrip('V')
+    $numbers = $version->replace('-', '.-1.')->split('.')
+    $i = 0
+    while $i < len($numbers)
+        $tmp = try_parse_int(str($numbers[$i]))->split('.')
+        $tmp = list(map(int, [item for item in $tmp if item != '']))
+        $numbers[$i:$i+1] = $tmp
+        $i = $i + len($tmp)
+    endwhile
+    return $numbers
+endfunc
+
+@doc """Compares two version strings. \
+Returns 1 if a is bigger than b, \
+0 is two versions are equal, \
+and -1 if a is less than b.\
+"""
+func int::compare(list|string $a, list|string $b)
+    if typeof($a) == string
+        $v_a = lpm.version.parse($a)
+    else
+        $v_a = $a
+    endif
+    if typeof($a) == string
+        $v_b = lpm.version.parse($b)
+    else
+        $v_b = $b
+    endif
+
+    $i = 0
+    while $i < len($v_a) or $i < len($v_b)
+        if $i >= len($v_b)
+            if $v_a[$i] == -1
+                return -1
+            else
+                return 1
+            endif
+        elif $i >= len($v_a)
+            if $v_b[$i] == -1
+                return 1
+            else
+                return -1
+            endif
+        endif
+
+        if $v_a[$i] > $v_b[$i]
+            return 1
+        elif $v_a[$i] < $v_b[$i]
+            return -1
+        endif
+        $i = $i + 1
+    endwhile
+
+    return 0
+endfunc
+
+@doc "Gets a list from versions and sorts them"
+func list::sort_list(list $versions)
+    $sorted_versions = []
+    while len($versions) > 0
+        $i = 0
+        while $i < len($versions)
+            $j = 0
+            $is_bigger_than_all = true
+            while $j < len($versions)
+                if lpm.version.compare($versions[$i], $versions[$j]) < 0
+                    $is_bigger_than_all = false
+                endif
+                $j = $j + 1
+            endwhile
+
+            if $is_bigger_than_all
+                $sorted_versions->insert(0, $versions->pop($i))
+            endif
+
+            $i = $i + 1
+        endwhile
+    endwhile
+
+    return $sorted_versions
+endfunc
+
+endns; endns

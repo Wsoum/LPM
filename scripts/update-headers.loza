@@ -1,0 +1,99 @@
+#!/usr/bin/env loza
+#
+# update-headers.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+# Updates files copyright headers
+
+$header_text = '#\n# \
+The LPM Project\
+\n# Copyright 2021 LPM development team,\
+\n#           2021 parsa shahmaleki <parsampsh@gmail.com>\
+\n#\
+\n# This file is part of LPM.\
+\n#\
+\n# LPM is free software: you can redistribute it and/or modify\
+\n# it under the terms of the GNU General Public License as published by\
+\n# the Free Software Foundation, either version 3 of the License, or\
+\n# (at your option) any later version.\
+\n#\
+\n# LPM is distributed in the hope that it will be useful,\
+\n# but WITHOUT ANY WARRANTY; without even the implied warranty of\
+\n# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\
+\n# GNU General Public License for more details.\
+\n#\
+\n# You should have received a copy of the GNU General Public License\
+\n# along with Loza.  If not, see <https://www.gnu.org/licenses/>.\n'
+
+func set_once_header(string $path)
+    $spliter = ('#' * 73) + '\n\n'
+    
+    # open file and add header
+    $f = open($path, 'r')
+    $content = $f->read()
+    $f->close()
+
+    $new_content = ''
+
+    $parts = $content->split($spliter)
+    if len($parts) == 1
+        $new_content = $header_text + $spliter + $parts[0]
+    else
+	# already has the header
+        return
+    endif
+
+    # add current filename to header
+    $only_file_name = $path->replace('\\', '/')->split('/')[-1]
+    $new_content = '#\n# ' + $only_file_name + '\n' + $new_content
+
+    if $path->replace('\\', '/')->endswith('lpm/lpm.loza') or $path->replace('\\', '/')->endswith('scripts/update-headers.loza')
+        $new_content = '#!/usr/bin/env loza\n' + $new_content
+    endif
+
+    $f = open($path, 'w')
+    $f->write($new_content)
+    $f->close()
+endfunc
+
+import $__dir__ + '/crawler-lib.loza'
+
+$total_paths = []
+
+$c = Crawler($__dir__ + '/../src', '.loza')
+$total_paths = [*$total_paths, *$c->files_list]
+
+$c = Crawler($__dir__ + '/../scripts', '.loza')
+$total_paths = [*$total_paths, *$c->files_list]
+
+$c = Crawler($__dir__ + '/../tests', '.loza')
+$total_paths = [*$total_paths, *$c->files_list]
+
+$total_paths->sort()
+
+$i = 0
+while $i < len($total_paths)
+    set_once_header($total_paths[$i])
+    $i = $i + 1
+endwhile
+
+println('\033[32mHeaders updated successfully\033[0m')

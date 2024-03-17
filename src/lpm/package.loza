@@ -1,0 +1,495 @@
+#
+# package.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+import_once $__dir__ + '/pfile.loza'
+import_once $__dir__ + '/version.loza'
+import_once $__dir__ + '/http.loza'
+import_once $__dir__ + '/cache.loza'
+import_once @hash
+
+ns lpm
+
+@doc "Package driver for local file directories"
+class FileDriver
+    func __init__(string $address)
+        $this->error = null
+        $this->address = $address
+
+        if not os.path.isdir($this->address)
+            $this->error = 'Directory "'+$this->address+'" not found'
+            return
+        endif
+
+        $this->address = os.path.abspath($this->address)
+
+        if not os.path.isdir($this->address + '/.git')
+            $this->error = 'Directory "'+$this->address+'" is not a Git repository'
+            return
+        endif
+
+        try lpm_package_version_load_error
+            $this->versions = $this->load_versions()
+        endtry
+        goto after_lpm_package_version_load_error; section lpm_package_version_load_error
+            $this->error = 'Faild to load list of versions of '+$this->address+': ' + string(^)
+            return
+        section after_lpm_package_version_load_error
+    endfunc
+
+    @doc "Returns list of versions"
+    func load_versions()
+        $this->default_branch = null
+        $branches = $this->get_branches()
+        if 'main' in $branches
+            $this->default_branch = 'main'
+        elif 'dev' in $branches
+            $this->default_branch = 'dev'
+        elif 'devel' in $branches
+            $this->default_branch = 'devel'
+        elif 'develop' in $branches
+            $this->default_branch = 'develop'
+        elif 'master' in $branches
+            $this->default_branch = 'master'
+        else
+            $this->default_branch = $branches[0]
+        endif
+
+        $list = os.listdir($this->address + '/.git/refs/tags')
+        if not $list
+            $list = [$this->default_branch]
+        endif
+
+        return $list
+    endfunc
+
+    @doc "Gets a version and file name and loads the file in that version"
+    func string::load_file_content(string $version, string $filename)
+        $old_cwd = os.getcwd()
+        os.chdir($this->address)
+        $cmd = 'git show ' + repr($version + ':' + $filename)
+        try lpm_package_handle_git_command_error
+        $output = subprocess.check_output($cmd, shell=true)->decode()
+        endtry
+        goto after_lpm_package_handle_git_command_error; label lpm_package_handle_git_command_error
+            $output = ''
+        label after_lpm_package_handle_git_command_error
+        os.chdir($old_cwd)
+        return $output
+    endfunc
+
+    @doc "Loads `LPMfile` of a specify version"
+    func string::load_once_version(string $version)
+        return $this->load_file_content($version, 'LPMfile')
+    endfunc
+
+    @doc "Copies package directory to the target path"
+    func download(string $path, string $version)
+        if os.path.isdir($path)
+            py_load_module('shutil')->rmtree($path)
+        endif
+
+        py_load_module('shutil')->copytree($this->address, $path)
+
+        $old_cwd = os.getcwd()
+        os.chdir($path)
+        system('git checkout -q -b lpm-installation ' + repr($version))
+        os.chdir($old_cwd)
+    endfunc
+
+    @doc "Returns list of repo branches"
+    func list[string]::get_branches()
+        return os.listdir($this->address + '/.git/refs/heads')
+    endfunc
+endclass
+
+@doc "Package driver for GitHub repositories"
+class GithubDriver
+    func __init__(string $address)
+        $this->error = null
+        $this->address = $address
+
+        # send a request to the github server
+        try lpm_github_init
+            $res = lpm.http.req('https://github.com/' + $this->address)
+
+            if $res->getcode() != 200
+                $this->error = 'Failed to load ' + 'https://github.com/' + $this->address + ': ' + string($res->getcode()) + ' Status code'
+                return
+            endif
+        endtry
+        goto after_lpm_github_init; label lpm_github_init
+            $this->error = 'Failed to make http connection to the ' + 'https://github.com/' + $this->address
+            return
+        label after_lpm_github_init
+
+        try lpm_package_version_load_error
+            $this->versions = $this->load_versions()
+        endtry
+        goto after_lpm_package_version_load_error; section lpm_package_version_load_error
+            $this->error = 'Failed to load list of versions of '+$this->address+': ' + string(^)
+            return
+        section after_lpm_package_version_load_error
+    endfunc
+
+    @doc "Returns list of versions"
+    func load_versions()
+        $this->default_branch = null
+        $branches = $this->get_branches()
+        if 'main' in $branches
+            $this->default_branch = 'main'
+        elif 'dev' in $branches
+            $this->default_branch = 'dev'
+        elif 'devel' in $branches
+            $this->default_branch = 'devel'
+        elif 'develop' in $branches
+            $this->default_branch = 'develop'
+        elif 'master' in $branches
+            $this->default_branch = 'master'
+        else
+            $this->default_branch = $branches[0]
+        endif
+
+        # read the Github
+        $res = lpm.http.req('https://api.github.com/repos/' + $this->address + '/git/matching-refs/tags')
+        $json_res = json.loads($res->read()->decode())
+
+        # extract tag names
+        $list = [item['ref'][10:] for item in $json_res]
+
+        if not $list
+            $list = [$this->default_branch]
+        endif
+
+        return $list
+    endfunc
+
+    @doc "Gets a version and file name and loads the file in that version"
+    func string::load_file_content(string $version, string $filename)
+        # github url to read
+        $url = 'https://raw.githubusercontent.com/' + $this->address + '/' + $version + '/' + $filename
+
+        $output = ''
+
+        # read the github
+        try lpm_package_handle_git_command_error
+            $output = lpm.http.req($url)->read()->decode()
+        endtry
+        goto after_lpm_package_handle_git_command_error; label lpm_package_handle_git_command_error
+            $output = ''
+        label after_lpm_package_handle_git_command_error
+
+        return $output
+    endfunc
+
+    @doc "Loads `LPMfile` of a specify version"
+    func string::load_once_version(string $version)
+        return $this->load_file_content($version, 'LPMfile')
+    endfunc
+
+    @doc "Copies package directory to the target path"
+    func download(string $path, string $version)
+        if not os.path.isdir($lpm.cache_dir)
+            os.mkdir($lpm.cache_dir)
+        endif
+
+        if os.path.isdir($path)
+            py_load_module('shutil')->rmtree($path)
+        endif
+
+        $repo_cache_dirname = $lpm.cache_dir + '/' + hash.sha256($this->address + $version)
+
+        if not os.path.isdir($repo_cache_dirname)
+            system('git clone https://github.com/' + $this->address + '.git ' + $repo_cache_dirname)
+            $old_cwd = os.getcwd()
+            os.chdir($repo_cache_dirname)
+            system('git checkout -b lpm-installation ' + $version)
+            os.chdir($old_cwd)
+        else
+            # refresh the cache
+            $old_cwd = os.getcwd()
+            os.chdir($repo_cache_dirname)
+            system('git checkout ' + $this->default_branch)
+            system('git pull')
+            system('git pull --tags')
+            system('git branch -D lpm-installation')
+            system('git checkout -b lpm-installation ' + $version)
+            os.chdir($old_cwd)
+            pass # TODO : log that we are using the cache
+        endif
+
+        py_load_module('shutil')->copytree($repo_cache_dirname, $path)
+    endfunc
+
+    @doc "Returns list of repo branches"
+    func get_branches()
+        # read the Github
+        $res = lpm.http.req('https://api.github.com/repos/' + $this->address + '/git/matching-refs/heads')
+        $json_res = json.loads($res->read()->decode())
+
+        # extract branch names
+        $ref_names = [item['ref'][11:] for item in $json_res]
+
+        return $ref_names
+    endfunc
+endclass
+
+@doc "The package model"
+class Package
+    func __init__(string $name)
+        $parts = $name->split(':', 1)
+        if len($parts) == 1
+            # default driver is `gh`
+            $name = 'gh:' + $name
+            $parts = $name->split(':', 1)
+        endif
+
+        $this->raw_name = $name
+        $this->type = $parts[0]
+        $this->address = $parts[1]
+        $this->error = null
+
+        # load the driver
+        if $this->type == 'f'
+            $this->driver = lpm.FileDriver($this->address)
+        elif $this->type == 'gh'
+            $this->driver = lpm.GithubDriver($this->address)
+        else
+            # unknow driver
+            $this->error = 'Unknow driver "'+$this->type+'"'
+            return
+        endif
+
+        # check driver success
+        if $this->driver->error is not null
+            $this->error = $this->driver->error
+            return
+        endif
+
+        $this->versions = lpm.version.sort_list($this->driver->versions)
+    endfunc
+
+    @doc "Is package successfully loaded"
+    func bool::is_success()
+        return $this->error is null
+    endfunc
+
+    @doc """Loads LPMfile config of a specify version of package. \
+    Returns errors as string. \
+    But if process is successful, return lpm.LPMFile object.\
+    """
+    func string|lpm.LPMFile::get_version(string $version)
+        if $version not in $this->versions and $this->driver->default_branch != $version \
+            and $version not in $this->driver->get_branches()
+            return 'version "' + $version + '" not found'
+        endif
+
+        $config = lpm.LPMFile->loads($this->driver->load_once_version($version))
+
+        if $config->name == ''
+            return 'file `LPMfile` not found or is invalid'
+        endif
+
+        return $config
+    endfunc
+endclass
+
+@doc "This class Handles the `loza_modules` directory"
+class PackageDirectory
+    func __init__(string $path = null)
+        if $path is null
+            if PARHAM_GLOBAL
+                $path = string(py_load_module('pathlib')->Path()->home()) + '/.local/lib/loza_modules'
+            else
+                $path = os.getcwd() + '/loza_modules'
+            endif
+        endif
+
+        $this->path = $path
+
+        # create directory if not exists
+        if not os.path.isdir($path)
+            os.mkdir($path)
+        endif
+    endfunc
+
+    @doc "Checks a package is installed or not. returns false if no, and returns installed verison if yes"
+    func bool|string::is_installed(string $name)
+        if os.path.isdir($this->path + '/' + $name)
+            if os.path.isfile($this->path + '/' + $name + '/.lpm-installed-version')
+                $f = fopen($this->path + '/' + $name + '/.lpm-installed-version', 'r')
+                $ver = $f->read()->strip()
+                $f->close()
+                return $ver
+            else
+                return false
+            endif
+        else
+            return false
+        endif
+    endfunc
+
+    func list[list]::installed_list()
+        $list = os.listdir($this->path)
+
+        $result = []
+
+        $i = 0
+        while $i < len($list)
+            if os.path.isdir($this->path + '/' + $list[$i]) and $list[$i] != '__lozaam__'
+                $version_f = fopen($this->path + '/' + $list[$i] + '/.lpm-installed-version', 'r')
+                $result->append([lpm.Package('f:' + $this->path + '/' + $list[$i]), $version_f->read()->strip()])
+                $version_f->close()
+            endif
+
+            $i = $i + 1
+        endwhile
+
+        return $result
+    endfunc
+
+    @doc "Parses and checks a package query and returns result as boolean"
+    func bool::query(string $query)
+        # parse the query
+        $or_blocks = [or_block.strip().split('&') for or_block in $query->strip()->split('|')]
+
+        $i = 0
+        while $i < len($or_blocks)
+            $j = 0
+            while $j < len($or_blocks[$i])
+                $or_blocks[$i][$j] = $or_blocks[$i][$j]->strip()
+
+                if '>=' in $or_blocks[$i][$j]
+                    $or_blocks[$i][$j] = $or_blocks[$i][$j]->split('>=', 1)
+                    $or_blocks[$i][$j]->insert(1, '>=')
+                elif '<=' in $or_blocks[$i][$j]
+                    $or_blocks[$i][$j] = $or_blocks[$i][$j]->split('<=', 1)
+                    $or_blocks[$i][$j]->insert(1, '<=')
+                elif '>' in $or_blocks[$i][$j]
+                    $or_blocks[$i][$j] = $or_blocks[$i][$j]->split('>', 1)
+                    $or_blocks[$i][$j]->insert(1, '>')
+                elif '<' in $or_blocks[$i][$j]
+                    $or_blocks[$i][$j] = $or_blocks[$i][$j]->split('<', 1)
+                    $or_blocks[$i][$j]->insert(1, '<')
+                elif '!=' in $or_blocks[$i][$j]
+                    $or_blocks[$i][$j] = $or_blocks[$i][$j]->split('!=', 1)
+                    $or_blocks[$i][$j]->insert(1, '!=')
+                elif '=' in $or_blocks[$i][$j]
+                    $or_blocks[$i][$j] = $or_blocks[$i][$j]->split('=', 1)
+                    $or_blocks[$i][$j]->insert(1, '=')
+                else
+                    $or_blocks[$i][$j] = [$or_blocks[$i][$j]]
+                endif
+
+                $j = $j + 1
+            endwhile
+
+            $i = $i + 1
+        endwhile
+
+        # check the query
+        $installed_packages = $this->installed_list()
+        $only_package_names = [ins_pkg[0]->get_version(ins_pkg[1])->name for ins_pkg in $installed_packages]
+        $pkg_by_version = {}
+        $x = 0
+        while $x < len($installed_packages)
+            $tmp_pkg_name = $installed_packages[$x][0]->get_version($installed_packages[$x][1])->name
+            $pkg_by_version[$tmp_pkg_name] = $installed_packages[$x][1]
+            $x = $x + 1
+        endwhile
+
+        $i = 0
+        while $i < len($or_blocks) # foreach or block
+            $once_result = false
+            $j = 0
+            while $j < len($or_blocks[$i]) # foreach and block in the current or block
+                # check once query
+                if len($or_blocks[$i][$j]) == 1
+                    $once_result = $or_blocks[$i][$j][0]->strip() in $only_package_names
+                elif len($or_blocks[$i][$j]) == 3
+                    $once_result = $or_blocks[$i][$j][0]->strip() in $only_package_names
+                    if $once_result is true
+                        $pkg_name = $or_blocks[$i][$j][0]->strip()
+                        $op = $or_blocks[$i][$j][1]->strip()
+                        $version = $or_blocks[$i][$j][2]->strip()
+                        $current_version = $pkg_by_version[$pkg_name]->strip()
+
+                        if $op == '='
+                            $once_result = lpm.version.compare($version, $current_version) == 0
+                        elif $op == '!='
+                            $once_result = lpm.version.compare($version, $current_version) != 0
+                        elif $op == '>'
+                            $once_result = lpm.version.compare($version, $current_version) == 1
+                        elif $op == '<'
+                            $once_result = lpm.version.compare($version, $current_version) == -1
+                        elif $op == '>='
+                            $once_result = lpm.version.compare($version, $current_version) >= 0
+                        elif $op == '<='
+                            $once_result = lpm.version.compare($version, $current_version) <= 0
+                        else
+                            $once_result = false
+                        endif
+                    endif
+                else
+                    $once_result = false
+                endif
+
+                if $once_result is false
+                    break
+                endif
+
+                $j = $j + 1
+            endwhile
+
+            if $once_result is true
+                return true
+            endif
+
+            $i = $i + 1
+        endwhile
+
+        return false
+    endfunc
+endclass
+
+class Installer
+    $error = null
+
+    func install(lpm.Package $pkg, string $version, lpm.PackageDirectory $pkg_dir)
+        # download the package
+        $ver = $pkg->get_version($version)
+        try lpm_installer_handle_download_error
+            $pkg->driver->download($pkg_dir->path + '/' + $ver->name, $version)
+        endtry
+        goto after_lpm_installer_handle_download_error; label lpm_installer_handle_download_error
+            $this->error = str(^)
+            return
+        label after_lpm_installer_handle_download_error
+
+        # set the installed version
+        $f = fopen($pkg_dir->path + '/' + $ver->name + '/.lpm-installed-version', 'w')
+        $f->write($version)
+        $f->close()
+    endfunc
+endclass
+
+endns

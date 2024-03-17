@@ -1,0 +1,114 @@
+#
+# show.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+import_once $__dir__ + '/../package.loza'
+import_once $__dir__ + '/../log.loza'
+
+ns lpm; ns commands
+
+@doc """\
+This command shows details of packages\n\
+Usage: lpm show [options...] package1 package2 ...\n\
+\n\
+Options:\n\
+    --versions: shows list of versions of packages\n\
+"""
+func show_cmd($args)
+    $result = $args->validate({
+        'min_args': 1,
+
+        'options': {
+            '--versions': {
+            }
+        }
+    })
+    if $result is not true
+        lpm.print_warn 'lpm: show: ' + $result + '\n'
+        return 1
+    endif
+
+    # load the packages
+    lpm.print_info "Loading packages list...\n"
+    lpm.print_info "========================\n"
+
+    $i = 0
+    while $i < len($args->arguments)
+        $pkg_name = $args->arguments[$i]->split('=')
+        $pkg_version = null
+        if len($pkg_name) > 1
+            $pkg_version = $pkg_name[1]
+        endif
+        $pkg_name = $pkg_name[0]
+
+        $pkg = lpm.Package($pkg_name)
+
+        if not $pkg->is_success()
+            lpm.print_err 'Error: ' + $pkg->error + '\n'
+        else
+            if $pkg_version is null
+                $pkg_version = $pkg->versions[-1] # set latest version as default
+            endif
+
+            $version = $pkg->get_version($pkg_version)
+
+            if typeof($version) == string
+                lpm.print_err 'Error: ' + $version + '\n'
+            else
+                # show the package
+                if $args->has_option('--versions')
+                    lpm.print_log $pkg_name + ': ' + ', '->join($pkg->versions) + '\n'
+                else
+                    $j = 0
+                    $version->raw_options['version'] = $pkg_version
+                    $keys = list($version->raw_options->keys())
+                    $keys->insert(0, $keys->pop($keys->index('name')))
+                    while $j < len($keys)
+                        $key = $keys[$j]
+                        if typeof($version->raw_options[$key]) == list
+                            if $version->raw_options[$key]
+                                lpm.print_log $key->capitalize() + ': ' + ', '->join($version->raw_options[$key]) + '\n'
+                            endif
+                        else
+                            if $version->raw_options[$key] != ''
+                                if $key == 'description_file'
+                                    lpm.print_log 'Long Description: ' + '\n'.join(['  ' + line for line in $pkg->driver->load_file_content($pkg_version, $version->raw_options[$key])->splitlines()])[2:] + '\n'
+                                else
+                                    lpm.print_log $key->capitalize() + ': ' + string($version->raw_options[$key]) + '\n'
+                                endif
+                            endif
+                        endif
+
+                        $j = $j + 1
+                    endwhile
+                endif
+                lpm.print_info "========================\n"
+            endif
+        endif
+
+        $i = $i + 1
+    endwhile
+
+    return 0
+endfunc
+
+endns; endns

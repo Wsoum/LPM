@@ -1,0 +1,11 @@
+NAME lpm
+
+DESCRIPTION The LPM package manager
+DESCRIPTION_FILE raw-description.txt
+
+LICENSE GPL-3
+AUTHOR LPM development team
+HOMEPAGE https://github.com/lozalang/lpm
+
+PATH src
+

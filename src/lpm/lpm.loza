@@ -1,0 +1,105 @@
+#!/usr/bin/env loza
+#
+# lpm.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+#!/usr/bin/env loza
+
+import_once $__dir__ + '/cmdline.loza'
+import_once $__dir__ + '/commands'
+
+ns lpm
+
+func main(array[string] $argv)
+    # parse the arguments
+    $is_global = false
+    if '-g' in $argv
+        $argv->pop($argv->index('-g'))
+        $is_global = true
+    endif
+    if '--global' in $argv
+        $argv->pop($argv->index('--global'))
+        $is_global = true
+    endif
+
+    $q_flag_count = 0
+    if '-q' in $argv
+        $argv->pop($argv->index('-q'))
+        $q_flag_count = 1
+    endif
+    if '-qq' in $argv
+        $argv->pop($argv->index('-qq'))
+        $q_flag_count = 2
+    endif
+    if '-qqq' in $argv
+        $argv->pop($argv->index('-qqq'))
+        $q_flag_count = 3
+    endif
+    if '-qqqq' in $argv
+        $argv->pop($argv->index('-qqqq'))
+        $q_flag_count = 4
+    endif
+
+    define('PARHAM_GLOBAL', $is_global)
+    define('PARHAM_LOG_INFO', $q_flag_count <= 0)
+    define('PARHAM_LOG_LOG', $q_flag_count <= 1)
+    define('PARHAM_LOG_WARN', $q_flag_count <= 2)
+    define('PARHAM_LOG_ERR', $q_flag_count <= 3)
+
+    $args = lpm.cmdline.parse_args($argv)
+
+    # run the command
+    $command_name = 'index'
+    if len($args->arguments) > 0
+        $command_name = $args->arguments[0]
+
+        if not $command_name in list($lpm.commands.list->keys())
+            # command not found
+            perror('lpm: unknow command "' + $command_name + '"\n')
+            return 1
+        endif
+    endif
+
+    $command_func = $lpm.commands.list[$command_name]
+    if $args->arguments
+        $args->arguments->pop(0)
+    endif
+
+    if $args->has_option('--help')
+        println $command_func->__docstring__
+        $code = 0
+    else
+        $code = $command_func($args)
+    endif
+
+    if $code is null
+        $code = 0
+    endif
+
+    $code = int($code)
+
+    exit($code)
+endfunc
+
+endns
+
+lpm.main($argv[1:])

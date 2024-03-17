@@ -1,0 +1,60 @@
+#!/usr/bin/env loza
+#
+# run.loza
+#
+# The LPM Project
+# Copyright 2021 LPM development team,
+#           2021 parsa shahmaleki <parsampsh@gmail.com>
+#
+# This file is part of LPM.
+#
+# LPM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LPM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Loza.  If not, see <https://www.gnu.org/licenses/>.
+#########################################################################
+
+# Runs all of the tests
+
+import_once $__dir__ + '/../scripts/crawler-lib.loza'
+
+define('PARHAM_GLOBAL', false)
+define('PARHAM_LOG_INFO', false)
+define('PARHAM_LOG_LOG', false)
+define('PARHAM_LOG_WARN', false)
+define('PARHAM_LOG_ERR', false)
+
+println 'Loading the tests...'
+# load the tests
+$files = Crawler($__dir__, '.loza')->files_list
+$files->sort()
+$tests = []
+$i = 0
+while $i < len($files)
+    $files[$i] = os.path.abspath($files[$i])->replace('\\', '/')
+    if not $files[$i]->endswith('/run.loza')
+        import_once $files[$i]
+        $tests->append([clone(TEST), $files[$i][len($__dir__)-5:]])
+    endif
+
+    $i = $i + 1
+endwhile
+
+println 'Running the tests...'
+# run the tests
+$i = 0
+while $i < len($tests)
+    print '['+str($i+1)+'/'+str(len($tests))+'] ' + $tests[$i][0]->__docstring__ + ' (' + $tests[$i][1] + ')' + '... '
+    $tests[$i][0]()
+    println 'PASS'
+
+    $i = $i + 1
+endwhile

@@ -1,0 +1,33 @@
+name: tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        # TODO : add windows and macos
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Loza
+      uses: lozalang/setup-loza@master
+      with:
+        loza-version: 0.8.4
+
+    - name: Running Tests
+      shell: bash
+      run: |
+        git config --global user.email '<>'
+        git config --global user.name 'robot'
+        if [ "$RUNNER_OS" == "Windows" ]; then
+            loza tests/run.loza
+        else
+            make all
+        fi
+
+    name: Test ${{ matrix.os }}
