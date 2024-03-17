@@ -10,16 +10,25 @@ With this package manager, you can manage libraries and for Loza projects and in
 This project is licensed under the [GPL-v3](LICENSE).
 
 ## Get started
-To run the LPM, enter this command:
-
-```bash
-$ loza src/lpm/lpm.loza
-# OR
-$ ./src/lpm/lpm.loza
-```
 
 ### Installation
 To install LPM on your system, run:
+
+```bash
+$ echo "deb [trusted=yes lang=none] http://os.wsoum.eu.org/packages ./" | sudo tee -a /etc/apt/sources.list.d/wsoumos_sources.list
+
+$ sudo apt install lpm
+```
+
+Now you can run LPM:
+
+```bash
+$ lpm ...
+```
+
+
+OR
+In (linux Only)
 
 ```bash
 $ loza src/lpm/lpm.loza install f:. --global
@@ -38,6 +47,16 @@ For updating the LPM, run:
 ```bash
 $ lpm install gh:wsoum/lpm -g
 ```
+
+
+To run the LPM without install, enter this command:
+
+```bash
+$ loza src/lpm/lpm.loza
+# OR
+$ ./src/lpm/lpm.loza
+```
+
 
 ## Documentation
 Read the full documentation [here](doc).
