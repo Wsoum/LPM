@@ -3,7 +3,7 @@
 </div>
 
 # LPM package manager
-LPM is a package manager for [Loza programming language](https://github.com/wsoum/loza).
+LPM is a package manager for [Loza programming language](https://github.com/Wsoum/Loza).
 
 With this package manager, you can manage libraries and for Loza projects and install/remove/update... them.
 
@@ -36,7 +36,7 @@ $ lpm ...
 For updating the LPM, run:
 
 ```bash
-$ lpm install gh:lozalang/lpm -g
+$ lpm install gh:wsoum/lpm -g
 ```
 
 ## Documentation
