@@ -2,4 +2,4 @@ The LPM package manager.
 LPM is a package manager for Loza programming language.
 With this package manager, you can manage libraries for Loza projects and install/remove/update... them.
 This project is licensed under the GPL-v3.
-Read documentation of this project at https://github.com/wsoum/lpm
+Read documentation of this project at https://github.com/Wsoum/LPM
